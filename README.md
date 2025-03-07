@@ -28,7 +28,7 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 ### Kurulum Adımları
 1. Repoyu klonlayın:
 ```bash
-git clone https://github.com/yourusername/confirmix.git
+git clone https://github.com/SolidityDevSK/confirmix.git
 ```
 
 2. Proje dizinine gidin:
@@ -88,4 +88,4 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosy
 
 ## İletişim
 
-GitHub: [Your GitHub Profile](https://github.com/yourusername) 
+GitHub: [SolidityDevSK](https://github.com/SolidityDevSK) 

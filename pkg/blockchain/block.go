@@ -1,18 +1,20 @@
-package main
+package blockchain
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"time"
+
+	"github.com/SolidityDevSK/Confirmix/internal/validator"
 )
 
 // Block represents each block in the blockchain
 type Block struct {
-	Timestamp    int64  // bloğun oluşturulma zamanı
-	Data        []byte // blok içindeki veriler
-	PrevHash    []byte // önceki bloğun hash'i
-	Hash        []byte // mevcut bloğun hash'i
-	Signature   []byte // validator imzası
+	Timestamp        int64  // bloğun oluşturulma zamanı
+	Data            []byte // blok içindeki veriler
+	PrevHash        []byte // önceki bloğun hash'i
+	Hash            []byte // mevcut bloğun hash'i
+	Signature       []byte // validator imzası
 	ValidatorAddress string // blok oluşturan validator'ın adresi
 }
 
@@ -28,18 +30,18 @@ func (b *Block) CalculateHash() []byte {
 }
 
 // NewBlock yeni bir blok oluşturur
-func NewBlock(data string, prevHash []byte, validator *Authority) (*Block, error) {
+func NewBlock(data string, prevHash []byte, v *validator.Authority) (*Block, error) {
 	block := &Block{
 		Timestamp: time.Now().Unix(),
 		Data:     []byte(data),
 		PrevHash: prevHash,
-		ValidatorAddress: validator.Address,
+		ValidatorAddress: v.Address,
 	}
 	
 	block.Hash = block.CalculateHash()
 	
 	// Bloğu validator ile imzala
-	signature, err := validator.Sign(block.Hash)
+	signature, err := v.Sign(block.Hash)
 	if err != nil {
 		return nil, err
 	}

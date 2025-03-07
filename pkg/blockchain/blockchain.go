@@ -1,45 +1,47 @@
-package main
+package blockchain
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
+
+	"github.com/SolidityDevSK/Confirmix/internal/validator"
 )
 
 // Blockchain represents the entire chain of blocks
 type Blockchain struct {
 	Blocks     []*Block
-	Validators map[string]*Authority // ValidatorAddress -> Authority
+	Validators map[string]*validator.Authority // ValidatorAddress -> Authority
 }
 
 // AddValidator adds a new validator to the blockchain
-func (bc *Blockchain) AddValidator(authority *Authority) {
+func (bc *Blockchain) AddValidator(authority *validator.Authority) {
 	if bc.Validators == nil {
-		bc.Validators = make(map[string]*Authority)
+		bc.Validators = make(map[string]*validator.Authority)
 	}
 	bc.Validators[authority.Address] = authority
 }
 
 // AddBlock zincire yeni bir blok ekler
-func (bc *Blockchain) AddBlock(data string, validator *Authority) error {
+func (bc *Blockchain) AddBlock(data string, v *validator.Authority) error {
 	// Validator'ın yetkili olup olmadığını kontrol et
-	if _, exists := bc.Validators[validator.Address]; !exists {
+	if _, exists := bc.Validators[v.Address]; !exists {
 		return errors.New("unauthorized validator")
 	}
 
 	prevBlock := bc.Blocks[len(bc.Blocks)-1]
-	newBlock, err := NewBlock(data, prevBlock.Hash, validator)
+	newBlock, err := NewBlock(data, prevBlock.Hash, v)
 	if err != nil {
 		return err
 	}
 
 	// İmzayı doğrula
-	if !validator.Verify(newBlock.Hash, newBlock.Signature) {
+	if !v.Verify(newBlock.Hash, newBlock.Signature) {
 		return errors.New("invalid block signature")
 	}
 
 	bc.Blocks = append(bc.Blocks, newBlock)
-	fmt.Printf("Yeni blok eklendi! Validator: %s\n", validator.Address[:10])
+	fmt.Printf("Yeni blok eklendi! Validator: %s\n", v.Address[:10])
 	return nil
 }
 
@@ -60,13 +62,13 @@ func (bc *Blockchain) IsValid() bool {
 		}
 
 		// Validator'ı kontrol et
-		validator, exists := bc.Validators[currentBlock.ValidatorAddress]
+		v, exists := bc.Validators[currentBlock.ValidatorAddress]
 		if !exists {
 			return false
 		}
 
 		// İmzayı kontrol et
-		if !validator.Verify(currentBlock.Hash, currentBlock.Signature) {
+		if !v.Verify(currentBlock.Hash, currentBlock.Signature) {
 			return false
 		}
 	}
@@ -74,10 +76,10 @@ func (bc *Blockchain) IsValid() bool {
 }
 
 // NewBlockchain yeni bir blockchain oluşturur
-func NewBlockchain(genesisValidator *Authority) (*Blockchain, error) {
+func NewBlockchain(genesisValidator *validator.Authority) (*Blockchain, error) {
 	blockchain := &Blockchain{
 		Blocks:     []*Block{},
-		Validators: make(map[string]*Authority),
+		Validators: make(map[string]*validator.Authority),
 	}
 	
 	// Genesis validator'ı ekle

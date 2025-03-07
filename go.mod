@@ -1,3 +1,3 @@
-module blockchain
+module github.com/SolidityDevSK/Confirmix
 
-go 1.24.1
+go 1.24
