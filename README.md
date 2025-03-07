@@ -14,9 +14,9 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 - ✅ Round-Robin validator sıralama
 - ✅ HTTP API desteği
 - ✅ P2P ağ desteği
+- ✅ Akıllı kontrat desteği
 
 ### Geliştirme Aşamasındaki Özellikler
-- 🔄 Akıllı kontrat desteği
 - 🔄 Validator oylama sistemi
 - 🔄 Web arayüzü
 
@@ -26,6 +26,7 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 - Go 1.24 veya üzeri
 - Gin web framework
 - libp2p
+- go-ethereum
 
 ### Kurulum Adımları
 1. Repoyu klonlayın:
@@ -90,6 +91,36 @@ go run cmd/confirmix/main.go -p2p-port 9001 -bootstrap BOOTSTRAP_NODE_ADDR
 - Blok ve validator duyuruları
 - Güvenli P2P iletişim
 
+## Akıllı Kontratlar
+
+### Özellikler
+- EVM (Ethereum Virtual Machine) uyumlu
+- Solidity kontratlarını destekler
+- Kontrat yönetimi (deploy, execute, disable/enable)
+- Kontrat sahipliği ve yetkilendirme
+- Gas limiti ve kontrol
+
+### Örnek Kontrat Deploy
+```bash
+curl -X POST http://localhost:8080/contracts \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "608060405234801561001057600080fd5b50...",
+    "owner": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "name": "MyToken",
+    "version": "1.0.0"
+  }'
+```
+
+### Örnek Kontrat Çağrısı
+```bash
+curl -X POST http://localhost:8080/contracts/0x1234.../execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "a9059cbb000000000000000000000000..."
+  }'
+```
+
 ## Proje Yapısı
 
 ```
@@ -100,6 +131,7 @@ confirmix/
 │   ├── api/               # HTTP API implementasyonu
 │   ├── blockchain/        # Blockchain çekirdek yapısı
 │   ├── consensus/         # Konsensüs mekanizmaları
+│   ├── contracts/        # Akıllı kontrat sistemi
 │   ├── network/          # P2P ağ implementasyonu
 │   └── utils/            # Yardımcı fonksiyonlar
 ├── internal/              # Sadece içeride kullanılan paketler
@@ -130,6 +162,12 @@ confirmix/
    - RESTful API ile blockchain yönetimi
    - Blok ve validator işlemleri
    - İşlem gönderme ve sorgulama
+
+4. **Akıllı Kontratlar**
+   - EVM tabanlı akıllı kontrat çalıştırma ortamı
+   - Kontrat deploy ve yönetimi
+   - Güvenli kontrat yürütme
+   - Kontrat sahipliği kontrolü
 
 ## Katkıda Bulunma
 

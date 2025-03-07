@@ -69,6 +69,126 @@ curl -X POST http://localhost:8080/transactions \
   }'
 ```
 
+## Smart Contract Endpoints
+
+### Deploy Contract
+```bash
+POST /contracts
+```
+
+Deploy a new smart contract.
+
+**Request Body:**
+```json
+{
+    "code": "608060405234801561001057600080fd5b50...",  // Contract bytecode (hex)
+    "owner": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+    "name": "MyToken",
+    "version": "1.0.0"
+}
+```
+
+**Response:**
+```json
+{
+    "address": "0x1234...",
+    "owner": "0x742d...",
+    "name": "MyToken",
+    "version": "1.0.0",
+    "timestamp": 1647123456,
+    "is_enabled": true
+}
+```
+
+### List Contracts
+```bash
+GET /contracts
+```
+
+Returns a list of all deployed contracts.
+
+**Response:**
+```json
+[
+    {
+        "address": "0x1234...",
+        "owner": "0x742d...",
+        "name": "MyToken",
+        "version": "1.0.0",
+        "timestamp": 1647123456,
+        "is_enabled": true
+    }
+]
+```
+
+### Get Contract
+```bash
+GET /contracts/:address
+```
+
+Returns details of a specific contract.
+
+**Response:**
+```json
+{
+    "address": "0x1234...",
+    "owner": "0x742d...",
+    "name": "MyToken",
+    "version": "1.0.0",
+    "timestamp": 1647123456,
+    "is_enabled": true
+}
+```
+
+### Execute Contract
+```bash
+POST /contracts/:address/execute
+```
+
+Execute a smart contract method.
+
+**Request Body:**
+```json
+{
+    "input": "a9059cbb000000000000000000000000..."  // Method call data (hex)
+}
+```
+
+**Response:**
+```json
+{
+    "result": "0000000000000000000000000000000000000000000000000000000000000001"
+}
+```
+
+### Disable Contract
+```bash
+POST /contracts/:address/disable
+```
+
+Disable a smart contract (only contract owner).
+
+**Request Body:**
+```json
+{
+    "owner": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+}
+```
+
+### Enable Contract
+```bash
+POST /contracts/:address/enable
+```
+
+Enable a disabled smart contract (only contract owner).
+
+**Request Body:**
+```json
+{
+    "owner": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"
+}
+```
+
 ## Örnek Kullanım
 
 1. Blockchain bilgisini al:
@@ -101,4 +221,9 @@ curl http://localhost:8080/blocks
 - Tüm POST istekleri için `Content-Type: application/json` header'ı gereklidir
 - Validator adresleri, validator oluşturulduğunda console'da görüntülenir
 - Round-Robin konsensüs nedeniyle, işlemler sadece sırası gelen validator tarafından eklenebilir
-- Bloklar arası minimum 5 saniyelik bekleme süresi vardır 
+- Bloklar arası minimum 5 saniyelik bekleme süresi vardır
+- All POST requests must include the `Content-Type: application/json` header
+- Contract code and input data must be hex-encoded
+- Contract addresses are automatically generated based on the code, owner, and timestamp
+- Only the contract owner can disable or enable a contract
+- Contract execution follows the EVM specification 

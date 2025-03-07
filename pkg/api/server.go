@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/SolidityDevSK/Confirmix/internal/validator"
 	"github.com/SolidityDevSK/Confirmix/pkg/blockchain"
+	"github.com/SolidityDevSK/Confirmix/pkg/common"
+	"encoding/hex"
 )
 
 // Server represents the HTTP API server
@@ -39,6 +41,17 @@ func (s *Server) setupRoutes() {
 	
 	// İşlem gönderme
 	s.router.POST("/transactions", s.submitTransaction)
+
+	// Akıllı kontrat endpoint'leri
+	contracts := s.router.Group("/contracts")
+	{
+		contracts.POST("", s.deployContract)
+		contracts.GET("", s.listContracts)
+		contracts.GET("/:address", s.getContract)
+		contracts.POST("/:address/execute", s.executeContract)
+		contracts.POST("/:address/disable", s.disableContract)
+		contracts.POST("/:address/enable", s.enableContract)
+	}
 }
 
 // Run starts the HTTP server
@@ -148,4 +161,132 @@ func (s *Server) submitTransaction(c *gin.Context) {
 		"message": "Transaction added successfully",
 		"block":   s.blockchain.Blocks[len(s.blockchain.Blocks)-1],
 	})
+}
+
+// deployContract handles contract deployment
+func (s *Server) deployContract(c *gin.Context) {
+	var req struct {
+		Code    string `json:"code" binding:"required"`
+		Owner   string `json:"owner" binding:"required"`
+		Name    string `json:"name" binding:"required"`
+		Version string `json:"version" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Kontrat kodunu decode et
+	code, err := hex.DecodeString(req.Code)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid contract code"})
+		return
+	}
+
+	// Owner adresini parse et
+	owner := common.HexToAddress(req.Owner)
+
+	// Kontratı deploy et
+	contract, err := s.blockchain.DeployContract(code, owner, req.Name, req.Version)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, contract)
+}
+
+// listContracts handles contract listing
+func (s *Server) listContracts(c *gin.Context) {
+	contracts := s.blockchain.ListContracts()
+	c.JSON(http.StatusOK, contracts)
+}
+
+// getContract handles contract retrieval
+func (s *Server) getContract(c *gin.Context) {
+	address := common.HexToAddress(c.Param("address"))
+	contract, err := s.blockchain.GetContract(address)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, contract)
+}
+
+// executeContract handles contract execution
+func (s *Server) executeContract(c *gin.Context) {
+	address := common.HexToAddress(c.Param("address"))
+
+	var req struct {
+		Input string `json:"input" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Input verisini decode et
+	input, err := hex.DecodeString(req.Input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input data"})
+		return
+	}
+
+	// Kontratı çalıştır
+	result, err := s.blockchain.ExecuteContract(address, input)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"result": hex.EncodeToString(result),
+	})
+}
+
+// disableContract handles contract disabling
+func (s *Server) disableContract(c *gin.Context) {
+	address := common.HexToAddress(c.Param("address"))
+
+	var req struct {
+		Owner string `json:"owner" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	owner := common.HexToAddress(req.Owner)
+	if err := s.blockchain.ContractManager.DisableContract(address, owner); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+// enableContract handles contract enabling
+func (s *Server) enableContract(c *gin.Context) {
+	address := common.HexToAddress(c.Param("address"))
+
+	var req struct {
+		Owner string `json:"owner" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	owner := common.HexToAddress(req.Owner)
+	if err := s.blockchain.ContractManager.EnableContract(address, owner); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 } 
