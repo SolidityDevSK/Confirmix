@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/SolidityDevSK/Confirmix/internal/validator"
+	"github.com/SolidityDevSK/Confirmix/pkg/consensus"
 )
 
 // Blockchain represents the entire chain of blocks
 type Blockchain struct {
 	Blocks     []*Block
 	Validators map[string]*validator.Authority // ValidatorAddress -> Authority
+	consensus  *consensus.RoundRobin
+	lastBlockTime time.Time
 }
 
 // AddValidator adds a new validator to the blockchain
@@ -20,6 +24,13 @@ func (bc *Blockchain) AddValidator(authority *validator.Authority) {
 		bc.Validators = make(map[string]*validator.Authority)
 	}
 	bc.Validators[authority.Address] = authority
+	bc.consensus.AddValidator(authority)
+}
+
+// RemoveValidator removes a validator from the blockchain
+func (bc *Blockchain) RemoveValidator(address string) {
+	delete(bc.Validators, address)
+	bc.consensus.RemoveValidator(address)
 }
 
 // AddBlock zincire yeni bir blok ekler
@@ -27,6 +38,16 @@ func (bc *Blockchain) AddBlock(data string, v *validator.Authority) error {
 	// Validator'ın yetkili olup olmadığını kontrol et
 	if _, exists := bc.Validators[v.Address]; !exists {
 		return errors.New("unauthorized validator")
+	}
+
+	// Validator sırası kontrolü
+	if !bc.consensus.IsValidatorTurn(v.Address) {
+		return fmt.Errorf("not validator's turn: %s", v.Address[:10])
+	}
+
+	// Bloklar arası minimum süre kontrolü
+	if time.Since(bc.lastBlockTime) < bc.consensus.GetBlockInterval() {
+		return fmt.Errorf("minimum block interval not reached, wait %v", bc.consensus.GetBlockInterval()-time.Since(bc.lastBlockTime))
 	}
 
 	prevBlock := bc.Blocks[len(bc.Blocks)-1]
@@ -41,8 +62,21 @@ func (bc *Blockchain) AddBlock(data string, v *validator.Authority) error {
 	}
 
 	bc.Blocks = append(bc.Blocks, newBlock)
+	bc.lastBlockTime = time.Now()
+
+	// Sıradaki validator'a geç
+	_, err = bc.consensus.NextValidator()
+	if err != nil {
+		return fmt.Errorf("failed to move to next validator: %v", err)
+	}
+
 	fmt.Printf("Yeni blok eklendi! Validator: %s\n", v.Address[:10])
 	return nil
+}
+
+// GetCurrentValidator returns the current validator in the rotation
+func (bc *Blockchain) GetCurrentValidator() (*validator.Authority, error) {
+	return bc.consensus.GetCurrentValidator()
 }
 
 // IsValid zincirin geçerli olup olmadığını kontrol eder
@@ -77,9 +111,13 @@ func (bc *Blockchain) IsValid() bool {
 
 // NewBlockchain yeni bir blockchain oluşturur
 func NewBlockchain(genesisValidator *validator.Authority) (*Blockchain, error) {
+	// Round-Robin konsensüs mekanizmasını oluştur (5 saniyelik blok aralığı)
+	roundRobin := consensus.NewRoundRobin(5 * time.Second)
+	
 	blockchain := &Blockchain{
 		Blocks:     []*Block{},
 		Validators: make(map[string]*validator.Authority),
+		consensus:  roundRobin,
 	}
 	
 	// Genesis validator'ı ekle
@@ -92,5 +130,6 @@ func NewBlockchain(genesisValidator *validator.Authority) (*Blockchain, error) {
 	}
 	
 	blockchain.Blocks = append(blockchain.Blocks, genesisBlock)
+	blockchain.lastBlockTime = time.Now()
 	return blockchain, nil
 } 
