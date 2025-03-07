@@ -13,9 +13,9 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 - ✅ Blok imzalama ve doğrulama
 - ✅ Round-Robin validator sıralama
 - ✅ HTTP API desteği
+- ✅ P2P ağ desteği
 
 ### Geliştirme Aşamasındaki Özellikler
-- 🔄 P2P ağ desteği
 - 🔄 Akıllı kontrat desteği
 - 🔄 Validator oylama sistemi
 - 🔄 Web arayüzü
@@ -25,6 +25,7 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 ### Gereksinimler
 - Go 1.24 veya üzeri
 - Gin web framework
+- libp2p
 
 ### Kurulum Adımları
 1. Repoyu klonlayın:
@@ -44,7 +45,11 @@ go mod download
 
 4. Projeyi çalıştırın:
 ```bash
-go run cmd/confirmix/main.go
+# İlk node'u başlat
+go run cmd/confirmix/main.go -api-port 8080 -p2p-port 9000
+
+# İkinci node'u başlat ve ilk node'a bağlan
+go run cmd/confirmix/main.go -api-port 8081 -p2p-port 9001 -bootstrap /ip4/127.0.0.1/tcp/9000/p2p/FIRST_NODE_ID
 ```
 
 ## HTTP API
@@ -68,6 +73,23 @@ curl -X POST http://localhost:8080/transactions \
   }'
 ```
 
+## P2P Ağ
+
+### Node Başlatma
+```bash
+# Bootstrap node
+go run cmd/confirmix/main.go -p2p-port 9000
+
+# Diğer node'lar
+go run cmd/confirmix/main.go -p2p-port 9001 -bootstrap BOOTSTRAP_NODE_ADDR
+```
+
+### Özellikler
+- Otomatik peer keşfi
+- Blockchain senkronizasyonu
+- Blok ve validator duyuruları
+- Güvenli P2P iletişim
+
 ## Proje Yapısı
 
 ```
@@ -78,6 +100,7 @@ confirmix/
 │   ├── api/               # HTTP API implementasyonu
 │   ├── blockchain/        # Blockchain çekirdek yapısı
 │   ├── consensus/         # Konsensüs mekanizmaları
+│   ├── network/          # P2P ağ implementasyonu
 │   └── utils/            # Yardımcı fonksiyonlar
 ├── internal/              # Sadece içeride kullanılan paketler
 │   └── validator/        # Validator işlemleri
@@ -97,7 +120,13 @@ confirmix/
    - Her blok arasında minimum süre (5 saniye) beklenir
    - Sadece sırası gelen validator blok oluşturabilir
 
-3. **HTTP API**
+3. **P2P Ağ**
+   - libp2p tabanlı P2P iletişim
+   - Otomatik peer keşfi ve bağlantı
+   - Blockchain senkronizasyonu
+   - Blok ve validator duyuruları
+
+4. **HTTP API**
    - RESTful API ile blockchain yönetimi
    - Blok ve validator işlemleri
    - İşlem gönderme ve sorgulama

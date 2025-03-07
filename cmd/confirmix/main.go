@@ -1,15 +1,27 @@
 package main
 
 import (
+	"context"
+	"flag"
+	"fmt"
 	"log"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/SolidityDevSK/Confirmix/internal/validator"
 	"github.com/SolidityDevSK/Confirmix/pkg/api"
 	"github.com/SolidityDevSK/Confirmix/pkg/blockchain"
+	"github.com/SolidityDevSK/Confirmix/pkg/network"
 )
 
 func main() {
+	// Komut satırı parametrelerini tanımla
+	apiPort := flag.Int("api-port", 8080, "HTTP API port")
+	p2pPort := flag.Int("p2p-port", 9000, "P2P network port")
+	bootstrapNode := flag.String("bootstrap", "", "Bootstrap node address")
+	flag.Parse()
+
 	// Genesis validator'ı oluştur
 	genesisValidator, err := validator.NewAuthority()
 	if err != nil {
@@ -29,12 +41,37 @@ func main() {
 	}
 	bc.AddValidator(validator2)
 
+	// P2P node'unu başlat
+	node, err := network.NewNode(*p2pPort, bc)
+	if err != nil {
+		log.Fatal("P2P node oluşturulamadı:", err)
+	}
+	defer node.Close()
+
+	// Bootstrap node'una bağlan
+	if *bootstrapNode != "" {
+		ctx := context.Background()
+		if err := node.Connect(ctx, *bootstrapNode); err != nil {
+			log.Printf("Bootstrap node'una bağlanılamadı: %v", err)
+		}
+	}
+
 	// HTTP API sunucusunu başlat
 	server := api.NewServer(bc)
-	log.Printf("Genesis Validator Address: %s", genesisValidator.Address)
-	log.Printf("Second Validator Address: %s", validator2.Address)
-	log.Printf("HTTP API sunucusu başlatılıyor: http://localhost:8080")
-	if err := server.Run(":8080"); err != nil {
-		log.Fatal("Sunucu başlatılamadı:", err)
-	}
+	go func() {
+		log.Printf("Genesis Validator Address: %s", genesisValidator.Address)
+		log.Printf("Second Validator Address: %s", validator2.Address)
+		log.Printf("P2P Node Address: %s", node.GetMultiaddr())
+		log.Printf("HTTP API sunucusu başlatılıyor: http://localhost:%d", *apiPort)
+		if err := server.Run(fmt.Sprintf(":%d", *apiPort)); err != nil {
+			log.Fatal("Sunucu başlatılamadı:", err)
+		}
+	}()
+
+	// Graceful shutdown için sinyal bekle
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Uygulama kapatılıyor...")
 } 
