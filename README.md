@@ -11,10 +11,10 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 - ✅ Blok zinciri doğrulama
 - ✅ Genesis blok oluşturma
 - ✅ Blok imzalama ve doğrulama
+- ✅ Round-Robin validator sıralama
+- ✅ HTTP API desteği
 
 ### Geliştirme Aşamasındaki Özellikler
-- 🔄 Validator sıralama sistemi (Round-Robin)
-- 🔄 HTTP API desteği
 - 🔄 P2P ağ desteği
 - 🔄 Akıllı kontrat desteği
 - 🔄 Validator oylama sistemi
@@ -24,6 +24,7 @@ Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) kon
 
 ### Gereksinimler
 - Go 1.24 veya üzeri
+- Gin web framework
 
 ### Kurulum Adımları
 1. Repoyu klonlayın:
@@ -43,15 +44,46 @@ go mod download
 
 4. Projeyi çalıştırın:
 ```bash
-go run .
+go run cmd/confirmix/main.go
+```
+
+## HTTP API
+
+API dokümantasyonu için [API README](pkg/api/README.md) dosyasına bakın.
+
+### Örnek API Kullanımı
+
+1. Blockchain bilgisini al:
+```bash
+curl http://localhost:8080/info
+```
+
+2. Yeni bir işlem gönder:
+```bash
+curl -X POST http://localhost:8080/transactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": "Alice'den Bob'a 50 coin transfer",
+    "validator": "[VALIDATOR_ADDRESS]"
+  }'
 ```
 
 ## Proje Yapısı
 
-- `authority.go`: Validator yapısı ve imzalama işlemleri
-- `block.go`: Blok yapısı ve ilgili metodlar
-- `blockchain.go`: Blockchain yapısı ve temel işlemler
-- `main.go`: Örnek kullanım ve test kodu
+```
+confirmix/
+├── cmd/                    # Uygulamanın giriş noktaları
+│   └── confirmix/         # Ana uygulama
+├── pkg/                    # Dışa açık paketler
+│   ├── api/               # HTTP API implementasyonu
+│   ├── blockchain/        # Blockchain çekirdek yapısı
+│   ├── consensus/         # Konsensüs mekanizmaları
+│   └── utils/            # Yardımcı fonksiyonlar
+├── internal/              # Sadece içeride kullanılan paketler
+│   └── validator/        # Validator işlemleri
+├── docs/                  # Dokümantasyon
+└── tests/                 # Test dosyaları
+```
 
 ## Nasıl Çalışır?
 
@@ -60,19 +92,15 @@ go run .
    - Validatorlar blokları kendi private key'leri ile imzalar
    - İmzalar diğer validatorlar tarafından doğrulanır
 
-2. **Blok Yapısı**
-   - Timestamp
-   - İşlem verisi
-   - Önceki blok hash'i
-   - Mevcut blok hash'i
-   - Validator imzası
-   - Validator adresi
+2. **Round-Robin Konsensüs**
+   - Validatorlar sırayla blok oluşturur
+   - Her blok arasında minimum süre (5 saniye) beklenir
+   - Sadece sırası gelen validator blok oluşturabilir
 
-3. **Konsensüs Mekanizması**
-   - Proof of Authority kullanılır
-   - Sadece yetkili validatorlar blok oluşturabilir
-   - Her blok, oluşturan validator tarafından imzalanır
-   - Blok zinciri sürekli doğrulanır
+3. **HTTP API**
+   - RESTful API ile blockchain yönetimi
+   - Blok ve validator işlemleri
+   - İşlem gönderme ve sorgulama
 
 ## Katkıda Bulunma
 
