@@ -2,11 +2,12 @@ package api
 
 import (
 	"net/http"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/SolidityDevSK/Confirmix/internal/validator"
 	"github.com/SolidityDevSK/Confirmix/pkg/blockchain"
-	"github.com/SolidityDevSK/Confirmix/pkg/common"
+	"github.com/ethereum/go-ethereum/common"
 	"encoding/hex"
 )
 
@@ -18,9 +19,34 @@ type Server struct {
 
 // NewServer creates a new HTTP API server
 func NewServer(bc *blockchain.Blockchain) *Server {
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
+	
+	// Enable CORS
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Upgrade, Connection")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+		c.Writer.Header().Set("Access-Control-Expose-Headers", "Upgrade")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		// Request logging
+		fmt.Printf("[API] %s %s - Headers: %v\n", c.Request.Method, c.Request.URL.Path, c.Request.Header)
+		
+		c.Next()
+
+		// Response logging
+		fmt.Printf("[API] Response Status: %d\n", c.Writer.Status())
+	})
+
 	server := &Server{
 		blockchain: bc,
-		router:    gin.Default(),
+		router:    router,
 	}
 	server.setupRoutes()
 	return server
@@ -28,10 +54,16 @@ func NewServer(bc *blockchain.Blockchain) *Server {
 
 // setupRoutes configures the API endpoints
 func (s *Server) setupRoutes() {
+	// WebSocket endpoint
+	s.router.GET("/ws", func(c *gin.Context) {
+		s.blockchain.WebSocketServer.HandleWebSocket(c.Writer, c.Request)
+	})
+
 	// Blockchain bilgisi
 	s.router.GET("/info", s.getBlockchainInfo)
 	s.router.GET("/blocks", s.getBlocks)
 	s.router.GET("/blocks/:hash", s.getBlockByHash)
+	s.router.GET("/transactions", s.getTransactions)
 	
 	// Validator işlemleri
 	s.router.GET("/validators", s.getValidators)
@@ -62,16 +94,59 @@ func (s *Server) Run(addr string) error {
 // getBlockchainInfo returns general information about the blockchain
 func (s *Server) getBlockchainInfo(c *gin.Context) {
 	info := gin.H{
-		"blocks":     len(s.blockchain.Blocks),
-		"validators": len(s.blockchain.Validators),
-		"is_valid":   s.blockchain.IsValid(),
+		"blocks":              len(s.blockchain.Blocks),
+		"validators":          len(s.blockchain.Validators),
+		"is_valid":           s.blockchain.IsValid(),
+		"current_block":      len(s.blockchain.Blocks) - 1,
+		"active_validators":  s.blockchain.GetActiveValidatorCount(),
+		"validator_count":    len(s.blockchain.Validators),
+		"pending_transactions": 0, // TODO: Add mempool integration
 	}
+
+	fmt.Printf("[API] Sending blockchain info: %+v\n", info)
 	c.JSON(http.StatusOK, info)
 }
 
 // getBlocks returns all blocks in the chain
 func (s *Server) getBlocks(c *gin.Context) {
-	c.JSON(http.StatusOK, s.blockchain.Blocks)
+	blocks := make([]gin.H, 0)
+	for _, block := range s.blockchain.Blocks {
+		blocks = append(blocks, gin.H{
+			"height": block.Header.Height,
+			"hash": block.GetHashString(),
+			"timestamp": block.Header.Timestamp.Unix() * 1000, // Convert to milliseconds
+			"transactions": len(block.Transactions),
+			"validator": block.Header.ValidatorAddress,
+		})
+	}
+	c.JSON(http.StatusOK, blocks)
+}
+
+// getTransactions returns all transactions from recent blocks
+func (s *Server) getTransactions(c *gin.Context) {
+	transactions := make([]gin.H, 0)
+	
+	// Get transactions from the last 10 blocks
+	startBlock := 0
+	if len(s.blockchain.Blocks) > 10 {
+		startBlock = len(s.blockchain.Blocks) - 10
+	}
+	
+	for _, block := range s.blockchain.Blocks[startBlock:] {
+		for _, tx := range block.Transactions {
+			transactions = append(transactions, gin.H{
+				"hash": hex.EncodeToString(tx.Hash),
+				"from": tx.From,
+				"to": tx.To,
+				"value": tx.Value.String(),
+				"type": "transfer", // Default to transfer type for now
+				"timestamp": block.Header.Timestamp.Unix() * 1000,
+				"status": "success", // Default to success for now
+			})
+		}
+	}
+	
+	c.JSON(http.StatusOK, transactions)
 }
 
 // getBlockByHash returns a specific block by its hash
@@ -107,7 +182,8 @@ func (s *Server) getCurrentValidator(c *gin.Context) {
 
 // addValidator adds a new validator to the blockchain
 func (s *Server) addValidator(c *gin.Context) {
-	newValidator, err := validator.NewAuthority()
+	// Create a new private key for the validator
+	newValidator, err := validator.NewAuthority(nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,23 +219,36 @@ func (s *Server) submitTransaction(c *gin.Context) {
 		return
 	}
 
-	// Validator'ı bul
+	// Find the validator
 	v, exists := s.blockchain.Validators[req.Validator]
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Validator not found"})
 		return
 	}
 
-	// İşlemi blockchain'e ekle
-	err := s.blockchain.AddBlock(req.Data, v)
+	// Create a new block
+	prevBlock := s.blockchain.GetLatestBlock()
+	newBlock, err := blockchain.NewBlock(
+		prevBlock.Header.Height + 1,
+		prevBlock.GetHash(),
+		prevBlock.Header.StateRoot,
+		1000000, // Default gas limit
+		v,
+	)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Add the block to the chain
+	if err := s.blockchain.AddBlock(newBlock); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Transaction added successfully",
-		"block":   s.blockchain.Blocks[len(s.blockchain.Blocks)-1],
+		"block":   newBlock,
 	})
 }
 
