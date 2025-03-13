@@ -1,186 +1,148 @@
-# Confirmix
+# Confirmix Blockchain Explorer
 
-Confirmix, Go programlama dili ile geliştirilmiş, Proof of Authority (PoA) konsensüs mekanizmasını kullanan bir blockchain implementasyonudur.
+A modern blockchain explorer and smart contract management platform for the Confirmix PoA (Proof of Authority) blockchain.
 
-## Özellikler
+## Project Structure
 
-### Mevcut Özellikler
-- ✅ Proof of Authority (PoA) konsensüs mekanizması
-- ✅ Çoklu validator desteği
-- ✅ ECDSA tabanlı dijital imza sistemi
-- ✅ Blok zinciri doğrulama
-- ✅ Genesis blok oluşturma
-- ✅ Blok imzalama ve doğrulama
-- ✅ Round-Robin validator sıralama
-- ✅ HTTP API desteği
-- ✅ P2P ağ desteği
-- ✅ Akıllı kontrat desteği
+```
+blockchain/
+├── cmd/
+│   └── node/               # Blockchain node entry point
+├── internal/
+│   └── validator/          # Validator implementation
+├── pkg/
+│   ├── api/               # REST API implementation
+│   ├── blockchain/        # Core blockchain implementation
+│   ├── consensus/         # PoA consensus implementation
+│   └── testing/          # Testing utilities
+└── web/                   # Frontend application
+    ├── app/              # Next.js pages and routing
+    ├── components/       # React components
+    ├── contexts/         # React contexts
+    ├── lib/              # Utility functions
+    ├── services/         # API service layer
+    └── types/            # TypeScript type definitions
+```
 
-### Geliştirme Aşamasındaki Özellikler
-- 🔄 Validator oylama sistemi
-- 🔄 Web arayüzü
+## Working Components
 
-## Kurulum
+### Backend (Go)
 
-### Gereksinimler
-- Go 1.24 veya üzeri
-- Gin web framework
-- libp2p
-- go-ethereum
+1. **Blockchain Core**
+   - Block creation and validation
+   - Transaction processing
+   - Smart contract deployment and execution
+   - PoA consensus mechanism
 
-### Kurulum Adımları
-1. Repoyu klonlayın:
+2. **Validator System**
+   - Validator management
+   - Block signing and verification
+   - Authority rotation
+
+3. **API Server**
+   - RESTful endpoints for blockchain interaction
+   - WebSocket support for real-time updates
+   - Contract deployment and interaction
+
+### Frontend (Next.js)
+
+1. **Overview Dashboard**
+   - Blockchain statistics
+   - Recent blocks and transactions
+   - Network health indicators
+
+2. **Explorer**
+   - Block explorer
+   - Transaction viewer
+   - Address lookup
+
+3. **Smart Contracts**
+   - Contract deployment interface
+   - Contract verification
+   - Contract interaction UI
+   - Event monitoring
+
+4. **Validator Management**
+   - Validator list and status
+   - Performance metrics
+   - Authority management
+
+## Setup and Running
+
+1. Start the blockchain node:
 ```bash
-git clone https://github.com/SolidityDevSK/confirmix.git
+go run cmd/node/main.go
 ```
 
-2. Proje dizinine gidin:
+2. Install web dependencies:
 ```bash
-cd confirmix
+cd web
+npm install
 ```
 
-3. Bağımlılıkları yükleyin:
+3. Start the web application:
 ```bash
-go mod download
+npm run dev
 ```
 
-4. Projeyi çalıştırın:
-```bash
-# İlk node'u başlat
-go run cmd/confirmix/main.go -api-port 8080 -p2p-port 9000
+## Environment Configuration
 
-# İkinci node'u başlat ve ilk node'a bağlan
-go run cmd/confirmix/main.go -api-port 8081 -p2p-port 9001 -bootstrap /ip4/127.0.0.1/tcp/9000/p2p/FIRST_NODE_ID
+### Backend
+Default configuration:
+- API Port: 8080
+- WebSocket Port: 8081
+
+### Frontend
+Configure in `.env.local`:
+```
+NEXT_PUBLIC_BLOCKCHAIN_API_URL=http://localhost:8080
+NEXT_PUBLIC_BLOCKCHAIN_WS_URL=ws://localhost:8081
 ```
 
-## HTTP API
+## Future Development Plans
 
-API dokümantasyonu için [API README](pkg/api/README.md) dosyasına bakın.
+### Short-term
 
-### Örnek API Kullanımı
+1. **Smart Contract Improvements**
+   - [ ] Contract template library
+   - [ ] Batch deployment support
+   - [ ] Contract upgradeability
 
-1. Blockchain bilgisini al:
-```bash
-curl http://localhost:8080/info
-```
+2. **Explorer Enhancements**
+   - [ ] Advanced transaction filtering
+   - [ ] Token tracking
+   - [ ] Gas analytics
 
-2. Yeni bir işlem gönder:
-```bash
-curl -X POST http://localhost:8080/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "data": "Alice'den Bob'a 50 coin transfer",
-    "validator": "[VALIDATOR_ADDRESS]"
-  }'
-```
+3. **Validator Features**
+   - [ ] Validator performance metrics
+   - [ ] Automated health checks
+   - [ ] Slashing conditions
 
-## P2P Ağ
+### Long-term
 
-### Node Başlatma
-```bash
-# Bootstrap node
-go run cmd/confirmix/main.go -p2p-port 9000
+1. **Scalability**
+   - [ ] Sharding support
+   - [ ] Layer 2 solutions
+   - [ ] State pruning
 
-# Diğer node'lar
-go run cmd/confirmix/main.go -p2p-port 9001 -bootstrap BOOTSTRAP_NODE_ADDR
-```
+2. **Security**
+   - [ ] Audit logging
+   - [ ] Permission management
+   - [ ] Multi-signature support
 
-### Özellikler
-- Otomatik peer keşfi
-- Blockchain senkronizasyonu
-- Blok ve validator duyuruları
-- Güvenli P2P iletişim
+3. **Integration**
+   - [ ] Cross-chain bridges
+   - [ ] Oracle integration
+   - [ ] API SDK development
 
-## Akıllı Kontratlar
+## Contributing
 
-### Özellikler
-- EVM (Ethereum Virtual Machine) uyumlu
-- Solidity kontratlarını destekler
-- Kontrat yönetimi (deploy, execute, disable/enable)
-- Kontrat sahipliği ve yetkilendirme
-- Gas limiti ve kontrol
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
 
-### Örnek Kontrat Deploy
-```bash
-curl -X POST http://localhost:8080/contracts \
-  -H "Content-Type: application/json" \
-  -d '{
-    "code": "608060405234801561001057600080fd5b50...",
-    "owner": "0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-    "name": "MyToken",
-    "version": "1.0.0"
-  }'
-```
+## License
 
-### Örnek Kontrat Çağrısı
-```bash
-curl -X POST http://localhost:8080/contracts/0x1234.../execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "input": "a9059cbb000000000000000000000000..."
-  }'
-```
-
-## Proje Yapısı
-
-```
-confirmix/
-├── cmd/                    # Uygulamanın giriş noktaları
-│   └── confirmix/         # Ana uygulama
-├── pkg/                    # Dışa açık paketler
-│   ├── api/               # HTTP API implementasyonu
-│   ├── blockchain/        # Blockchain çekirdek yapısı
-│   ├── consensus/         # Konsensüs mekanizmaları
-│   ├── contracts/        # Akıllı kontrat sistemi
-│   ├── network/          # P2P ağ implementasyonu
-│   └── utils/            # Yardımcı fonksiyonlar
-├── internal/              # Sadece içeride kullanılan paketler
-│   └── validator/        # Validator işlemleri
-├── docs/                  # Dokümantasyon
-└── tests/                 # Test dosyaları
-```
-
-## Nasıl Çalışır?
-
-1. **Validator Sistemi**
-   - Her validator için ECDSA public/private anahtar çifti oluşturulur
-   - Validatorlar blokları kendi private key'leri ile imzalar
-   - İmzalar diğer validatorlar tarafından doğrulanır
-
-2. **Round-Robin Konsensüs**
-   - Validatorlar sırayla blok oluşturur
-   - Her blok arasında minimum süre (5 saniye) beklenir
-   - Sadece sırası gelen validator blok oluşturabilir
-
-3. **P2P Ağ**
-   - libp2p tabanlı P2P iletişim
-   - Otomatik peer keşfi ve bağlantı
-   - Blockchain senkronizasyonu
-   - Blok ve validator duyuruları
-
-4. **HTTP API**
-   - RESTful API ile blockchain yönetimi
-   - Blok ve validator işlemleri
-   - İşlem gönderme ve sorgulama
-
-4. **Akıllı Kontratlar**
-   - EVM tabanlı akıllı kontrat çalıştırma ortamı
-   - Kontrat deploy ve yönetimi
-   - Güvenli kontrat yürütme
-   - Kontrat sahipliği kontrolü
-
-## Katkıda Bulunma
-
-1. Bu repoyu fork edin
-2. Feature branch'i oluşturun (`git checkout -b feature/amazing-feature`)
-3. Değişikliklerinizi commit edin (`git commit -m 'Add some amazing feature'`)
-4. Branch'inizi push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
-
-## Lisans
-
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakın.
-
-## İletişim
-
-GitHub: [SolidityDevSK](https://github.com/SolidityDevSK) 
+This project is licensed under the MIT License - see the LICENSE file for details. 
